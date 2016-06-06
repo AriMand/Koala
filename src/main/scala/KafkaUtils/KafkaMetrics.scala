@@ -7,11 +7,16 @@ import scala.collection.mutable.ListBuffer
 import org.apache.kafka.common.protocol.SecurityProtocol
 import org.I0Itec.zkclient.serialize.ZkSerializer;
 import org.I0Itec.zkclient.exception.{ZkBadVersionException, ZkException, ZkMarshallingError, ZkNoNodeException, ZkNodeExistsException}
+import kafka.consumer.{ConsumerThreadId, TopicCount}
 
 
 case class BrokerInfo(id: Int, host: String, port: Int)
 
 case class TopicInfo(name: String, partitionId: String, leader: String, replicas: String, inSyncReplicas: String)
+
+case class ConsumerInfo(name:String,threadCount:Int,topicName:String)
+
+case class ConsumerGroupInfo(name:String,consumerCount:Int,topicCount:Int,consumers:Seq[ConsumerInfo])
 
 class KafkaMetrics(zkClient: ZkClient,zkConnection: ZkConnection) {
   zkClient.setZkSerializer(ZKStringSerializer)
@@ -39,12 +44,7 @@ class KafkaMetrics(zkClient: ZkClient,zkConnection: ZkConnection) {
         println(e)
         println("list topic failed")
     }
-    val consumergrps=zkutils.getConsumerGroups().toSeq.map(a=>ZkUtils.ConsumersPath+ "/" +a+"/offsets").filter(hasChildren _).map(a=>a.split("/")(2))
-    //println(consumergrps)
-    //println(consumergrps.map(a=>a->zkutils.getConsumersInGroup(a)))
-    //println(consumergrps.map(a=>a->zkutils.getConsumersPerTopic(a,true)))
-    val top=topicSeq
-    //println(top.map(a=>a->zkutils.getAllConsumerGroupsForTopic(a.name)))
+    println(listConsumerGroups)
     topicSeq
   }
   def hasChildren(path: String): Boolean = zkClient.countChildren(path) > 0
@@ -85,6 +85,60 @@ class KafkaMetrics(zkClient: ZkClient,zkConnection: ZkConnection) {
     brokers
   }
 
+  def listConsumerGroups : Seq[ConsumerGroupInfo] = {
+    var consumergrps= new scala.collection.mutable.ListBuffer[ConsumerGroupInfo]()
+    try {
+      val consumerGroups=zkutils.getConsumerGroups().toSeq
+      for(consumerGroup<-consumerGroups){
+        if(hasChildren(ZkUtils.ConsumersPath+ "/" +consumerGroup+"/ids")){
+          val topicGroupThreads=zkutils.getConsumersPerTopic(consumerGroup,true)
+          val consumersInfo=new scala.collection.mutable.ListBuffer[ConsumerInfo]()
+          val consumersInGrp=zkutils.getConsumersInGroup(consumerGroup)
+          val topicsInGrp=zkutils.getTopicsByConsumerGroup(consumerGroup)
+          for(consumer<-consumersInGrp){
+            println(consumer)
+            println("count")
+            consumersInfo ++= getConsumerInfo(consumer,true,topicGroupThreads)
+            println(consumersInfo)
+          }
+          consumergrps += ConsumerGroupInfo(consumerGroup,consumersInGrp.size,topicsInGrp.size,consumersInfo.toSeq)
+        }else{
+
+           consumergrps += ConsumerGroupInfo(consumerGroup,0,0,Seq.empty[ConsumerInfo])
+        }
+        
+      }
+    }
+    catch {
+      case e : Throwable =>
+        println(e)
+        println("list consumers error")
+    }
+    consumergrps.toSeq
+  }
+
+  def getConsumerInfo(consumer: String,excludeInternalTopics: Boolean,topicinfo: collection.mutable.Map[String, List[ConsumerThreadId]]) : List[ConsumerInfo] = {
+    val threadsPerTopic=new collection.mutable.HashMap[String, List[String]]
+    for ((topic, consumerThreadIDs) <- topicinfo){
+      for(consumerThreadID<-consumerThreadIDs){
+          if(consumerThreadID.consumer==consumer)
+          {
+          threadsPerTopic.get(topic) match {
+            case Some(curConsumers) => threadsPerTopic.put(topic, consumerThreadID.consumer :: curConsumers)
+            case _ => threadsPerTopic.put(topic, List(consumerThreadID.consumer))
+          }
+        }
+      }
+    }
+    val topicCountMap=threadsPerTopic.map{case (a,b)=>(a,b.size)}
+    var topicCountList = new scala.collection.mutable.ListBuffer[ConsumerInfo]()
+    for((topic,threadCount)<-topicCountMap)
+    {
+      topicCountList += ConsumerInfo(consumer,threadCount,topic)
+    }
+    val consumerInfo=topicCountList.toList
+    consumerInfo
+  }
 }
 
 private object ZKStringSerializer extends ZkSerializer {
