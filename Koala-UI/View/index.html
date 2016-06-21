@@ -1,0 +1,189 @@
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Java Servlet JSON</title>
+		<script src="js/jquery.1.9.1.min.js"></script>
+		<script src="js/bootstrap.min.js"></script>
+		<script src="js/popup.js"></script>
+		
+		<!--Pagination scripts-->
+		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script> 
+		<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
+		<script type="text/javascript" src="js/paging.js"></script> 
+		
+		<!-- bootstrap just to have good looking page -->
+		<link href="bootstrap/css/bootstrap.css" type="text/css" rel="stylesheet" />
+		<link href="css/bootstrap.min.css" type="text/css" rel="stylesheet" />
+		<link href="css/search.css" type="text/css" rel="stylesheet" />
+		<link href="css/popup.css" type="text/css" rel="stylesheet" />
+		<link href="css/pagination.css" type="text/css" rel="stylesheet" />
+		<link href="css/login.css" type="text/css" rel="stylesheet" />
+		<!-- we code these -->
+		<style>
+		.table_blog {
+		float: right;
+		margin-top: 15px;
+		width: 100%;
+		}
+		</style>
+		<script>
+		$( document ).ready(function() {
+		
+			$.getJSON( "newKafka.json", function( data ) {
+				//test(data);
+				brokersData(data.brokers);
+				topicsData(data.topics);
+				dataconsumerGroup(data.consumerGroups);
+				loadMetric(data.loadMetrics);
+			});
+			
+			//var data = $.getJSON("kafka_2.json");
+			
+			function test (data){
+				//console.log(data);
+			}
+			
+			
+	
+	//		$.each(response, function(i, item) {
+	//		$('<tr style="height:100px" >').html(
+	//		"<td>" + response[i].author + "</td><td>" + response[i].blog + "</td>").appendTo('#records_table');
+	//		});
+			
+			function brokersData(broker){
+			$.each(broker, function(i, item) {
+			$('<tr style="height:30px" >').html(
+			"<td>" + broker[i].id + "</td><td>" + broker[i].host + "</td><td>"+broker[i].port+"</td>").appendTo('#records_table');
+			});
+			//Pagination
+			$('#records_table').paging({limit:10});
+			}
+			
+			function topicsData(topics){
+			//console.log('topic'+topics)
+			$.each(topics, function(i, item) {
+			$('<tr style="height:30px" >').html(
+			"<td>" + topics[i].name + "</td><td>" + topics[i].inSyncReplicas + "</td><td>"+ topics[i].replicas +"</td><td>"+ topics[i].partition + "</td><td>" +topics[i].leader +"</td>").appendTo('#records_table1');
+			});
+			//Pagination
+			$('#records_table1').paging({limit:10});
+			}
+			
+			function dataconsumerGroup(consumerGroups){
+			//console.log('consumerGroups'+consumerGroups)
+			$.each(consumerGroups, function(i, item) {
+			$('<tr style="height:30px" >').html(
+			"<td>" + consumerGroups[i].consumerGroupName + "</td><td>"+consumerGroups[i].consumerCount+"</td><td>"+ consumerGroups[i].topicCount + "</td><td>"+consumerGroups[i].consumers+"</td>").appendTo('#records_table2');
+			});
+			//Pagination
+			$('#records_table2').paging({limit:20});
+			}
+			function loadMetric(loadMetrics){
+			console.log('loadMetrics::::::'+loadMetrics)
+			$.each(loadMetrics, function(i, item) {
+			$('<tr style="height:30px" >').html(
+			"<td>" + loadMetrics[i].consumerGroupName +"</td><td>"+loadMetrics[i].lag+"</td><td>"+loadMetrics[i].offset+"</td><td>"+loadMetrics[i].pid+"</td><td>"+loadMetrics[i].topicName+"</td><td>"+ loadMetrics[i].owner + "</td><td>"+loadMetrics[i].logsize+"</td>").appendTo('#records_table3');
+			});
+			//Pagination
+			$('#records_table3').paging({limit:20});
+			}
+			
+			$(function() {
+			$( "#tabs" ).tabs();
+			});
+			
+			
+			//filter
+			
+			(function ($) {
+			$('#filter').keyup(function () {
+
+            var rex = new RegExp($(this).val(), 'i');
+            $('#records_table tr').hide();
+            $('#records_table tr').filter(function () {
+                return rex.test($(this).text());
+            }).show();
+
+            })
+
+			}(jQuery));
+	
+			//document ready
+			});
+
+			
+			
+		</script>
+		
+	</head>
+	
+	<body>
+	
+	<div>
+    <div class="">
+        <div class="">
+            <h1 class="text-center login-title">KOALA</h1>
+            <div>
+		
+		<div>
+      <!--   <div class="search">
+		<input type="text" class="form-control input-sm" id="filter" maxlength="64" placeholder="Search" />
+		<button type="submit" class="btn btn-primary btn-sm">Search</button>
+		</div> -->
+		<div>
+		<a class="btn" data-popup-open="popup-1" href="#">KOALA</a>
+		</div>
+		
+		<div id="tabs">
+  <ul>
+    <li><a href="#tabs-1">Brokers</a></li>
+    <li><a href="#tabs-2">Topics</a></li>
+    <li><a href="#tabs-3">Dataconsumer Group</a></li>
+    <li><a href="#tabs-4">Load Metrics</a></li>
+  </ul>
+  <div id="tabs-1">
+<div class="table_blog">
+			<table id="records_table" class="table table-striped"><tr><b><td>id</td><td>host</td><td>port</td></b></tr></table>
+		</div>
+  </div>
+  <div id="tabs-2">
+    <div class="table_blog">
+			<table id="records_table1" class="table table-striped"><tr><b><td>name</td><td>inSyncReplicas</td><td>replicas</td><td>partition</td><td>leader</td></b></tr></table>
+		</div>
+  </div>
+  <div id="tabs-3">
+   <div class="table_blog">
+			<table id="records_table2" class="table table-striped"><tr><b><td>CONSUMER GROUP NAME</td><td>CONSUMER COUNT</td><td>TOPIC COUNT</td><td>CONSUMERS</td></b></tr></table>
+		</div>
+  </div>
+  <div id="tabs-4">
+   <div class="table_blog">
+			<table id="records_table3" class="table table-striped"><tr><b><td>consumerGroupName</td><td>lag</td><td>offset</td><td>pid</td><td>topicName</td><td>owner</td><td>logsize</td></b></tr></table>
+		</div>
+  </div>
+</div>
+
+		<!-- <div class="popup" data-popup="popup-1">
+		<div class="popup-inner">
+		<div class="table_blog">
+			<table id="records_table1" class="table table-striped"></table>
+		</div>
+				<p><a data-popup-close="popup-1" href="#">Close</a></p>
+				<a class="popup-close" data-popup-close="popup-1" href="#">x</a>
+			</div>
+		</div> -->
+		
+
+		
+		<!-- <div class="input-group"> <span class="input-group-addon">Search</span>	
+		<input id="filter" type="text" class="form-control" placeholder="Type here...">
+		</div> -->
+		
+		</div>           
+        </div>
+    </div>
+</div>
+	
+	
+	</body> 
+</html>
